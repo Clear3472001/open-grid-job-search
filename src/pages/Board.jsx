@@ -17,10 +17,10 @@ export default function Board() {
   const [location, setLocation] = useState("");
   const [employment, setEmployment] = useState("all");
   const [remoteOnly, setRemoteOnly] = useState(false);
-  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
-    setVisible(PAGE_SIZE);
+    setPage(1);
   }, [keyword, location, employment, remoteOnly]);
 
   const results = useMemo(() => {
@@ -35,6 +35,16 @@ export default function Board() {
       return true;
     });
   }, [jobs, keyword, location, employment, remoteOnly]);
+
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageItems = results.slice(start, start + PAGE_SIZE);
+
+  const goToPage = (next) => {
+    setPage(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const clearFilters = () => {
     setKeyword("");
@@ -119,24 +129,44 @@ export default function Board() {
         ) : (
           <>
             <p className="mt-8 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {results.length} role{results.length === 1 ? "" : "s"}
+              {results.length} role{results.length === 1 ? "" : "s"} match
             </p>
+
             <div className="mt-4 grid gap-3">
-              {results.slice(0, visible).map((job) => (
+              {pageItems.map((job) => (
                 <JobCard key={`${job.company}-${job.id}`} job={job} />
               ))}
             </div>
-            {results.length > visible ? (
-              <div className="mt-8 flex justify-center">
+
+            <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-border/70 pt-6 sm:flex-row">
+              <p className="text-xs text-muted-foreground">
+                Showing {start + 1}–{Math.min(start + PAGE_SIZE, results.length)} of{" "}
+                {results.length} roles
+              </p>
+              <div className="flex items-center gap-3">
                 <Button
                   variant="outline"
+                  size="sm"
                   className="rounded-full"
-                  onClick={() => setVisible((count) => count + PAGE_SIZE)}
+                  disabled={currentPage <= 1}
+                  onClick={() => goToPage(currentPage - 1)}
                 >
-                  Load more roles
+                  Previous
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => goToPage(currentPage + 1)}
+                >
+                  Next
                 </Button>
               </div>
-            ) : null}
+            </div>
           </>
         )}
       </main>

@@ -15,7 +15,7 @@ export default function useJobs() {
     try {
       const page = await base44.entities.Company.filter({ active: true }, { limit: 500 });
       const records = Array.isArray(page) ? page : page?.items ?? [];
-      const payload = await fetchAllBoards(records.filter((company) => company?.slug));
+      const payload = await fetchAllBoards(records.filter((company) => company?.ashby_slug));
       setJobs(payload.jobs);
       setCompanies(payload.companies);
       setFetchedAt(payload.fetchedAt);

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Building2, Loader2 } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
 import CompanyAdd from "@/components/company/CompanyAdd";
 import useJobs from "@/hooks/useJobs";
 import { Button } from "@/components/ui/button";
@@ -16,8 +16,7 @@ export default function AddCompany() {
             to="/board"
             className="text-sm text-muted-foreground underline-offset-4 hover:underline"
           >
-            <ArrowLeft className="mr-2 inline h-4 w-4" />
-            Back to the board
+            ← Back to the board
           </Link>
         </div>
       </header>
@@ -25,8 +24,8 @@ export default function AddCompany() {
       <main className="mx-auto max-w-4xl px-6 py-12">
         <h1 className="font-display text-4xl tracking-tight sm:text-5xl">Add a company</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Type a company's name or paste the link to its Ashby job board. We verify it with Ashby
-          and then start pulling its open roles.
+          Give us the company's name and its Ashby slug or job board link. We verify the board with
+          Ashby before it goes live on the site.
         </p>
 
         <div className="mt-8">

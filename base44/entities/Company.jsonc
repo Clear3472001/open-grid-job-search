@@ -6,7 +6,7 @@
       "type": "string",
       "description": "Company display name shown on the board"
     },
-    "slug": {
+    "ashby_slug": {
       "type": "string",
       "description": "Ashby organization hosted jobs page name, e.g. headway"
     },
@@ -18,7 +18,7 @@
   },
   "required": [
     "name",
-    "slug"
+    "ashby_slug"
   ],
   "rls": {
     "read": {},

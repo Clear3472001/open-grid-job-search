@@ -1,8 +1,8 @@
 export const ASHBY_ENDPOINT =
   "https://jobs.ashbyhq.com/api/non-user-graphql?op=ApiJobBoardWithTeams";
 
-// Ashby's public board schema exposes locationName / secondaryLocations.locationName and has no
-// company or jobUrl fields — the posting URL is built from the org slug plus the job id.
+// Ashby's live public schema exposes locationName / secondaryLocations.locationName and has no
+// company, jobUrl or applyUrl fields — the posting URL is built from the slug plus the job id.
 export const JOB_BOARD_QUERY = `query ApiJobBoardWithTeams($organizationHostedJobsPageName: String!) { jobBoard: jobBoardWithTeams(organizationHostedJobsPageName: $organizationHostedJobsPageName) { jobPostings { id title locationName workplaceType employmentType secondaryLocations { locationName } teamId } } }`;
 
 export const POSTING_BASE_URL = "https://jobs.ashbyhq.com";
@@ -139,17 +139,18 @@ function writeCache(key, payload) {
 
 // Pulls every active company's Ashby board at once, normalizes the postings into a single list,
 // and caches the merged result for an hour so repeat visits and filter changes stay instant.
+// Companies that error or return a null board are skipped and reported, never fatal.
 export async function fetchAllBoards(companies) {
   const active = companies
-    .filter((company) => company?.slug)
-    .sort((a, b) => a.slug.localeCompare(b.slug));
-  const cacheKey = active.map((company) => company.slug).join("|");
+    .filter((company) => company?.ashby_slug)
+    .sort((a, b) => a.ashby_slug.localeCompare(b.ashby_slug));
+  const cacheKey = active.map((company) => company.ashby_slug).join("|");
 
   const cached = readCache(cacheKey);
   if (cached) return { ...cached, cached: true };
 
   const settled = await mapWithConcurrency(active, 8, async (company) => {
-    const board = await fetchBoard(company.slug);
+    const board = await fetchBoard(company.ashby_slug);
     return { postings: board?.jobPostings ?? [] };
   });
 
@@ -161,13 +162,13 @@ export async function fetchAllBoards(companies) {
     const company = active[index];
     if (result.status === "fulfilled") {
       const postings = result.value.postings;
-      summaries.push({ name: company.name, slug: company.slug, count: postings.length });
+      summaries.push({ name: company.name, slug: company.ashby_slug, count: postings.length });
       postings.forEach((posting) => {
-        jobs.push(normalizePosting(posting, company.name, company.slug));
+        jobs.push(normalizePosting(posting, company.name, company.ashby_slug));
       });
     } else {
-      summaries.push({ name: company.name, slug: company.slug, count: 0 });
-      errors.push({ slug: company.slug, message: String(result.reason?.message ?? result.reason) });
+      summaries.push({ name: company.name, slug: company.ashby_slug, count: 0 });
+      errors.push({ slug: company.ashby_slug, message: String(result.reason?.message ?? result.reason) });
     }
   });
 

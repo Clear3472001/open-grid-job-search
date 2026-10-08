@@ -10,7 +10,7 @@ import ScrollToTop from './components/ScrollToTop';
 import Home from '@/pages/Home';
 import Board from '@/pages/Board';
 import AddCompany from '@/pages/AddCompany';
-import AccessDenied from '@/pages/AccessDenied';
+import Oops from '@/pages/Oops';
 import AccessGuard from '@/components/AccessGuard';
 
 const AuthenticatedApp = () => {
@@ -41,7 +41,7 @@ const AuthenticatedApp = () => {
     <Routes>
       {/* Add your page Route elements here */}
       <Route path="/" element={<Home />} />
-      <Route path="/access-denied" element={<AccessDenied />} />
+      <Route path="/oops" element={<Oops />} />
       <Route element={<AccessGuard />}>
         <Route path="/board" element={<Board />} />
         <Route path="/add-company" element={<AddCompany />} />

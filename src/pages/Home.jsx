@@ -13,20 +13,19 @@ const HIGHLIGHTS = [
 
 export default function Home() {
   const navigate = useNavigate();
-  const [query, setQuery] = useState("");
+  const [name, setName] = useState("");
   const [trap, setTrap] = useState("");
 
   const handleSubmit = (event) => {
     event.preventDefault();
 
     if (trap.trim()) {
-      navigate("/access-denied", { replace: true });
+      navigate("/oops", { replace: true });
       return;
     }
 
     grantAccess();
-    const trimmed = query.trim();
-    navigate(trimmed ? `/board?q=${encodeURIComponent(trimmed)}` : "/board");
+    navigate("/board");
   };
 
   return (
@@ -72,21 +71,22 @@ export default function Home() {
             <p className="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Enter the board
             </p>
-            <h2 className="mt-3 font-display text-3xl tracking-tight">What are you looking for?</h2>
+            <h2 className="mt-3 font-display text-3xl tracking-tight">Tell us who's looking</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Start with a keyword, or leave it blank and browse everything.
+              No account, no password — just your name to step inside.
             </p>
 
             <div className="mt-6 space-y-3">
               <Input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Product designer, Vanta, remote…"
-                aria-label="Search roles"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Enter your name"
+                aria-label="Enter your name"
                 className="h-12 rounded-xl"
+                autoComplete="name"
               />
 
-              {/* Honeypot — hidden from people, appealing to bots. */}
+              {/* Honeypot — hidden from people via CSS, tempting to bots. */}
               <input
                 type="text"
                 name="website"
@@ -104,7 +104,7 @@ export default function Home() {
             </div>
 
             <p className="mt-4 text-xs text-muted-foreground">
-              No account needed. Free to browse, always.
+              We don't store your name — it's just the way in.
             </p>
           </form>
         </section>
