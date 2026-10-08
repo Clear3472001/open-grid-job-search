@@ -1,0 +1,95 @@
+{
+  "name": "JobCache",
+  "type": "object",
+  "properties": {
+    "company_slug": {
+      "type": "string",
+      "description": "The Company's Ashby slug \u2014 the unique key a cache record is upserted against"
+    },
+    "company_name": {
+      "type": "string",
+      "description": "Display name captured at fetch time, so reads don't need a Company join for the name"
+    },
+    "jobs": {
+      "type": "array",
+      "description": "Normalized postings the board UI renders: id, title, company, location, workplaceType, employmentType, department, team, url",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "workplaceType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "employmentType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "department": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "team": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "job_count": {
+      "type": "number",
+      "description": "Number of postings stored in jobs"
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this company's board was last pulled from Ashby"
+    }
+  },
+  "required": [
+    "company_slug",
+    "jobs",
+    "job_count",
+    "fetched_at"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

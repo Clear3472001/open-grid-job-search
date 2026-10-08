@@ -1,0 +1,45 @@
+{
+  "description": "Refreshes up to 40 stale JobCache records from Ashby every 15 minutes, keeping all boards fresh within ~2 hours while staying under Ashby's rate limit.",
+  "name": "Refresh Board Cache",
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "refresh_board_cache",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "refresh": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "refreshBoardCache",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Refresh stale board cache",
+            "description": "Caches up to 40 oldest companies from Ashby"
+          }
+        }
+      }
+    ]
+  },
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "*/15 * * * *",
+      "one_time_date": null,
+      "timezone": "UTC",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  }
+}

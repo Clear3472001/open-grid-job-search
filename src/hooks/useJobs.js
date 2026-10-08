@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { fetchAllBoards } from "@/lib/ashby";
 
+// Reads the board entirely from the cached getBoardData backend function — no per-visitor Ashby
+// hits. A scheduled workflow keeps JobCache fresh; companies without a cache record yet surface as
+// "syncing" rather than triggering a client-side fetch.
 export default function useJobs() {
   const [jobs, setJobs] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -13,12 +15,11 @@ export default function useJobs() {
     setLoading(true);
     setError(null);
     try {
-      const page = await base44.entities.Company.filter({ active: true }, { limit: 500 });
-      const records = Array.isArray(page) ? page : page?.items ?? [];
-      const payload = await fetchAllBoards(records.filter((company) => company?.ashby_slug));
-      setJobs(payload.jobs);
-      setCompanies(payload.companies);
-      setFetchedAt(payload.fetchedAt);
+      const response = await base44.functions.invoke("getBoardData", {});
+      const payload = response?.data ?? response;
+      setJobs(payload.jobs ?? []);
+      setCompanies(payload.companies ?? []);
+      setFetchedAt(new Date().toISOString());
     } catch (err) {
       setError(err?.message ?? "We couldn't load the job board.");
     } finally {

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Building2, Loader2 } from "lucide-react";
+import { Building2, Loader2, RefreshCw } from "lucide-react";
 import CompanyAdd from "@/components/company/CompanyAdd";
 import useJobs from "@/hooks/useJobs";
 import { Button } from "@/components/ui/button";
@@ -61,7 +61,14 @@ export default function AddCompany() {
                     <span className="truncate">{company.name}</span>
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {company.count} role{company.count === 1 ? "" : "s"}
+                    {company.syncing ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        syncing
+                      </span>
+                    ) : (
+                      `${company.count} role${company.count === 1 ? "" : "s"}`
+                    )}
                   </span>
                 </li>
               ))}
