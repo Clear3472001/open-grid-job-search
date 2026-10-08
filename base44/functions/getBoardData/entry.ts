@@ -1,24 +1,24 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
+import { fetchAllPages } from "../../shared/ats.ts";
 
 export default async function getBoardData(req) {
   try {
     const base44 = createClientFromRequest(req);
 
     // Board reads are public (the gate is a honeypot, not a login), so the service role reads the
-    // cache without needing an app user token.
-    const cachePage = await base44.asServiceRole.entities.JobCache.filter(
+    // cache without needing an app user token. Paginate through every record — the SDK may cap the
+    // page size below the requested limit, and a single call would silently drop companies past the
+    // cap (the board was rendering only A–E for visitors).
+    const cacheRecords = await fetchAllPages(
+      base44.asServiceRole.entities.JobCache,
       {},
-      { limit: 2000, sort: "company_slug" },
+      { sort: "company_slug" },
     );
-    const cacheRecords = cachePage?.items ?? [];
 
-    const companyPage = await base44.asServiceRole.entities.Company.filter(
+    const companies = (await fetchAllPages(
+      base44.asServiceRole.entities.Company,
       { active: true },
-      { limit: 1000 },
-    );
-    const companies = (companyPage?.items ?? []).filter(
-      (company) => company?.ats_slug || company?.ashby_slug,
-    );
+    )).filter((company) => company?.ats_slug || company?.ashby_slug);
 
     const cacheBySlug = new Map(cacheRecords.map((record) => [record.company_slug, record]));
     const slugOf = (company) => company.ats_slug || company.ashby_slug;

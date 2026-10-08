@@ -1,5 +1,10 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
-import { fetchBoardForCompany, normalizeJobsForCompany, mapWithConcurrency } from "../../shared/ats.ts";
+import {
+  fetchBoardForCompany,
+  normalizeJobsForCompany,
+  mapWithConcurrency,
+  fetchAllPages,
+} from "../../shared/ats.ts";
 
 const STALE_MS = 12 * 60 * 60 * 1000; // 12 hours
 const BATCH_SIZE = 40;
@@ -9,24 +14,23 @@ export default async function refreshBoardCache(req) {
   try {
     const base44 = createClientFromRequest(req);
 
-    const companyPage = await base44.asServiceRole.entities.Company.filter(
+    // Paginate through every active Company and every JobCache record. A single list() call
+    // silently truncates past the SDK's page cap, which would leave late-alphabet companies
+    // unrefreshed forever as the company list grows past 400.
+    const companies = (await fetchAllPages(
+      base44.asServiceRole.entities.Company,
       { active: true },
-      { limit: 1000 },
-    );
-    // Support both the new ats_slug and legacy ashby_slug; every company needs at least one.
-    const companies = (companyPage?.items ?? []).filter(
-      (company) => company?.ats_slug || company?.ashby_slug,
-    );
+    )).filter((company) => company?.ats_slug || company?.ashby_slug);
 
     if (companies.length === 0) {
       return Response.json({ refreshed: 0, remaining: 0, message: "No active companies." });
     }
 
-    const cachePage = await base44.asServiceRole.entities.JobCache.filter(
+    const cacheRecords = await fetchAllPages(
+      base44.asServiceRole.entities.JobCache,
       {},
-      { limit: 2000, fields: ["company_slug", "fetched_at"] },
+      { fields: ["company_slug", "fetched_at"] },
     );
-    const cacheRecords = cachePage?.items ?? [];
     const cacheBySlug = new Map(cacheRecords.map((record) => [record.company_slug, record]));
 
     const slugOf = (company) => company.ats_slug || company.ashby_slug;

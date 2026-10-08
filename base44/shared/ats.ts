@@ -166,6 +166,23 @@ export function normalizeJobsForCompany(company, board) {
   return [];
 }
 
+// ── Pagination helper ──────────────────────────────────────────────────────────
+// The entity SDK may cap the page size below the requested limit, so a single
+// list()/filter() call silently truncates when a collection grows past the cap.
+// This loops with the cursor until has_more is false, returning every record.
+export async function fetchAllPages(entity, query, options = {}) {
+  const all = [];
+  let cursor;
+  for (;;) {
+    const page = await entity.filter(query, { ...options, cursor });
+    const items = page?.items ?? [];
+    for (const item of items) all.push(item);
+    if (!page?.has_more || !page?.next_cursor) break;
+    cursor = page.next_cursor;
+  }
+  return all;
+}
+
 // ── Concurrency pool ───────────────────────────────────────────────────────────
 // Runs an async worker over items with a fixed concurrency pool. Resolves every item
 // (never throws) so a single company's error doesn't abort the batch.
