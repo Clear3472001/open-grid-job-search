@@ -1,4 +1,4 @@
-export const ACCESS_STORAGE_KEY = "ashby_board_access";
+export const ACCESS_STORAGE_KEY = "opengrid_access";
 
 export function hasAccess() {
   try {

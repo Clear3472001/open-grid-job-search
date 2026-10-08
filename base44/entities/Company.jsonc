@@ -6,19 +6,34 @@
       "type": "string",
       "description": "Company display name shown on the board"
     },
+    "ats": {
+      "type": "string",
+      "enum": [
+        "ashby",
+        "greenhouse",
+        "lever"
+      ],
+      "default": "ashby",
+      "description": "Which ATS hosts this company's job board"
+    },
     "ashby_slug": {
       "type": "string",
-      "description": "Ashby organization hosted jobs page name, e.g. headway"
+      "description": "Legacy Ashby organization slug. Kept for backward compatibility; new code reads ats_slug instead."
+    },
+    "ats_slug": {
+      "type": "string",
+      "description": "The board identifier on the company's ATS (Ashby org name, Greenhouse board name, or Lever company key)."
     },
     "active": {
       "type": "boolean",
       "default": true,
-      "description": "When true, this company's Ashby board is included in the aggregated job list"
+      "description": "When true, this company's board is included in the aggregated job list"
     }
   },
   "required": [
     "name",
-    "ashby_slug"
+    "ats",
+    "ats_slug"
   ],
   "rls": {
     "read": {},

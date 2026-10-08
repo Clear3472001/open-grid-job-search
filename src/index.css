@@ -4,43 +4,43 @@
 
 @layer base {
   :root {
-    --background: 40 30% 98%;
-    --foreground: 224 30% 11%;
+    --background: 0 0% 100%;
+    --foreground: 215 28% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 224 30% 11%;
+    --card-foreground: 215 28% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 224 30% 11%;
-    --primary: 249 62% 53%;
+    --popover-foreground: 215 28% 12%;
+    --primary: 173 80% 31%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 40 24% 95%;
-    --secondary-foreground: 224 30% 16%;
-    --muted: 40 22% 95%;
-    --muted-foreground: 224 12% 43%;
-    --accent: 40 26% 93%;
-    --accent-foreground: 224 30% 16%;
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 215 28% 17%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 14% 45%;
+    --accent: 173 30% 94%;
+    --accent-foreground: 173 80% 20%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 40 16% 88%;
-    --input: 40 16% 88%;
-    --ring: 249 62% 53%;
-    --chart-1: 249 62% 53%;
-    --chart-2: 168 62% 42%;
-    --chart-3: 32 84% 56%;
-    --chart-4: 210 70% 50%;
-    --chart-5: 340 70% 58%;
-    --radius: 0.85rem;
-    --font-heading: "Fraunces", ui-serif, Georgia, serif;
+    --border: 214 20% 89%;
+    --input: 214 20% 89%;
+    --ring: 173 80% 31%;
+    --chart-1: 173 80% 31%;
+    --chart-2: 200 70% 45%;
+    --chart-3: 43 80% 52%;
+    --chart-4: 280 60% 55%;
+    --chart-5: 340 70% 55%;
+    --radius: 0.5rem;
+    --font-heading: "Inter", ui-sans-serif, system-ui, sans-serif;
     --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
-    --font-display: "Fraunces", ui-serif, Georgia, serif;
+    --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    --sidebar-background: 40 30% 98%;
-    --sidebar-foreground: 224 30% 20%;
-    --sidebar-primary: 249 62% 53%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 28% 20%;
+    --sidebar-primary: 173 80% 31%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 40 24% 95%;
-    --sidebar-accent-foreground: 224 30% 16%;
-    --sidebar-border: 40 16% 88%;
-    --sidebar-ring: 249 62% 53%;
+    --sidebar-accent: 210 20% 96%;
+    --sidebar-accent-foreground: 215 28% 17%;
+    --sidebar-border: 214 20% 89%;
+    --sidebar-ring: 173 80% 31%;
   }
 
   .dark {

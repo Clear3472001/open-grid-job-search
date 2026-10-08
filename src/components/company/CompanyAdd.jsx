@@ -2,16 +2,23 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { fetchBoard, slugFromInput } from "@/lib/ashby";
+import { ATS_OPTIONS, slugFromInput, validateBoardSlug } from "@/lib/ats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const labelClass =
-  "text-[0.7rem] font-medium uppercase tracking-[0.16em] text-muted-foreground";
+const labelClass = "text-xs font-medium text-muted-foreground";
 
 export default function CompanyAdd({ onAdded }) {
   const [name, setName] = useState("");
+  const [ats, setAts] = useState("ashby");
   const [slugOrUrl, setSlugOrUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -27,15 +34,15 @@ export default function CompanyAdd({ onAdded }) {
 
     try {
       const companyName = name.trim();
-      const ashbySlug = slugFromInput(slugOrUrl);
+      const atsSlug = slugFromInput(slugOrUrl, ats);
 
       if (!companyName) throw new Error("Enter the company's name.");
-      if (!ashbySlug || !/^[a-z0-9][a-z0-9-]*$/.test(ashbySlug)) {
-        throw new Error("Enter the company's Ashby slug or the link to its job board.");
+      if (!atsSlug || !/^[a-z0-9][a-z0-9-]*$/.test(atsSlug)) {
+        throw new Error("Enter the board slug or link for this ATS.");
       }
 
       const existingPage = await base44.entities.Company.filter(
-        { ashby_slug: ashbySlug },
+        { ats, ats_slug: atsSlug },
         { limit: 1 },
       );
       const existing = Array.isArray(existingPage) ? existingPage : existingPage?.items ?? [];
@@ -43,23 +50,20 @@ export default function CompanyAdd({ onAdded }) {
         throw new Error(`${existing[0].name} is already on the board.`);
       }
 
-      let board = null;
-      try {
-        board = await fetchBoard(ashbySlug);
-      } catch (err) {
-        throw new Error(`We couldn't reach that Ashby board right now (${err.message}).`);
-      }
-      if (!board) {
-        throw new Error("That doesn't look like an active Ashby job board.");
+      const validation = await validateBoardSlug(ats, atsSlug);
+      if (!validation.valid) {
+        throw new Error(`We couldn't verify that board (${validation.error}).`);
       }
 
       await base44.entities.Company.create({
         name: companyName,
-        ashby_slug: ashbySlug,
+        ats,
+        ats_slug: atsSlug,
+        ashby_slug: ats === "ashby" ? atsSlug : atsSlug, // keep ashby_slug populated for backward compat
         active: true,
       });
 
-      setResult({ name: companyName, jobCount: (board.jobPostings ?? []).length });
+      setResult({ name: companyName, jobCount: validation.jobCount });
       setName("");
       setSlugOrUrl("");
       onAdded?.();
@@ -73,10 +77,10 @@ export default function CompanyAdd({ onAdded }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-3xl border border-border/70 bg-card p-6 shadow-[0_24px_55px_-45px_rgba(20,24,45,0.6)] sm:p-8"
+      className="rounded-lg border border-border bg-card p-6 shadow-sm sm:p-7"
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="sm:col-span-1">
           <Label htmlFor="company-name" className={labelClass}>
             Company name
           </Label>
@@ -84,21 +88,44 @@ export default function CompanyAdd({ onAdded }) {
             id="company-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Headway"
-            className="mt-2 h-12 rounded-xl"
+            placeholder="e.g. Headway"
+            className="mt-1.5 h-10"
             disabled={saving}
           />
         </div>
         <div>
+          <Label htmlFor="company-ats" className={labelClass}>
+            ATS
+          </Label>
+          <Select value={ats} onValueChange={setAts} disabled={saving}>
+            <SelectTrigger id="company-ats" className="mt-1.5 h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ATS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
           <Label htmlFor="company-slug" className={labelClass}>
-            Ashby slug or jobs URL
+            Board slug or URL
           </Label>
           <Input
             id="company-slug"
             value={slugOrUrl}
             onChange={(event) => setSlugOrUrl(event.target.value)}
-            placeholder="headway — or https://jobs.ashbyhq.com/headway"
-            className="mt-2 h-12 rounded-xl"
+            placeholder={
+              ats === "ashby"
+                ? "e.g. headway"
+                : ats === "greenhouse"
+                  ? "e.g. sandbox"
+                  : "e.g. lever"
+            }
+            className="mt-1.5 h-10"
             disabled={saving}
           />
         </div>
@@ -107,27 +134,28 @@ export default function CompanyAdd({ onAdded }) {
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <Button
           type="submit"
-          className="h-12 rounded-xl px-6"
+          className="h-10"
           disabled={saving || !name.trim() || !slugOrUrl.trim()}
         >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add company"}
+          {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+          Add company
         </Button>
         <p className="text-xs text-muted-foreground">
-          We check the board on Ashby first, so only live job boards make it onto the site.
+          We verify the board on the ATS first, so only live boards make it onto the grid.
         </p>
       </div>
 
       {error ? (
-        <p className="mt-4 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+        <p className="mt-4 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           {error}
         </p>
       ) : null}
 
       {result ? (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-700">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-accent p-3 text-sm text-accent-foreground">
           <span className="flex items-start gap-2">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             {result.name} added — {result.jobCount} open role{result.jobCount === 1 ? "" : "s"} found.
           </span>
           <Link

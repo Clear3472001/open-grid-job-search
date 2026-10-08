@@ -1,5 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
-import { fetchBoard, mapWithConcurrency, normalizePosting } from "../../shared/ashby.ts";
+import { fetchBoardForCompany, normalizeJobsForCompany, mapWithConcurrency } from "../../shared/ats.ts";
 
 const STALE_MS = 12 * 60 * 60 * 1000; // 12 hours
 const BATCH_SIZE = 40;
@@ -9,12 +9,14 @@ export default async function refreshBoardCache(req) {
   try {
     const base44 = createClientFromRequest(req);
 
-    // Anyone may call this — the board page triggers it on first load when the cache is empty.
     const companyPage = await base44.asServiceRole.entities.Company.filter(
       { active: true },
       { limit: 1000 },
     );
-    const companies = (companyPage?.items ?? []).filter((company) => company?.ashby_slug);
+    // Support both the new ats_slug and legacy ashby_slug; every company needs at least one.
+    const companies = (companyPage?.items ?? []).filter(
+      (company) => company?.ats_slug || company?.ashby_slug,
+    );
 
     if (companies.length === 0) {
       return Response.json({ refreshed: 0, remaining: 0, message: "No active companies." });
@@ -27,12 +29,15 @@ export default async function refreshBoardCache(req) {
     const cacheRecords = cachePage?.items ?? [];
     const cacheBySlug = new Map(cacheRecords.map((record) => [record.company_slug, record]));
 
+    const slugOf = (company) => company.ats_slug || company.ashby_slug;
+
     const now = Date.now();
     const stale = companies
       .map((company) => {
-        const cached = cacheBySlug.get(company.ashby_slug);
+        const slug = slugOf(company);
+        const cached = cacheBySlug.get(slug);
         const fetchedAt = cached?.fetched_at ? new Date(cached.fetched_at).getTime() : 0;
-        return { company, cachedId: cached?.id ?? null, fetchedAt };
+        return { company, slug, cachedId: cached?.id ?? null, fetchedAt };
       })
       .filter((entry) => !entry.fetchedAt || now - entry.fetchedAt > STALE_MS)
       .sort((a, b) => a.fetchedAt - b.fetchedAt); // oldest/missing first
@@ -41,27 +46,23 @@ export default async function refreshBoardCache(req) {
     const batch = stale.slice(0, BATCH_SIZE);
 
     const settled = await mapWithConcurrency(batch, CONCURRENCY, async (entry) => {
-      const board = await fetchBoard(entry.company.ashby_slug);
-      return { company: entry.company, board };
+      const board = await fetchBoardForCompany(entry.company);
+      return { company: entry.company, slug: entry.slug, board };
     });
 
     let refreshed = 0;
     const upserts = [];
 
     for (const result of settled) {
-      if (!result.ok) continue; // skip errored companies; they'll be retried next run
-      const { company, board } = result.value;
-      const postings = board?.jobPostings ?? [];
-      const jobs = postings.map((posting) =>
-        normalizePosting(posting, company.name, company.ashby_slug),
-      );
-      const fetchedAt = new Date().toISOString();
+      if (!result.ok) continue; // skip errored companies; retried next run
+      const { company, slug, board } = result.value;
+      const jobs = normalizeJobsForCompany(company, board);
       upserts.push({
-        company_slug: company.ashby_slug,
+        company_slug: slug,
         company_name: company.name,
         jobs,
         job_count: jobs.length,
-        fetched_at: fetchedAt,
+        fetched_at: new Date().toISOString(),
       });
       refreshed += 1;
     }
