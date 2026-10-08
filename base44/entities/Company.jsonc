@@ -1,0 +1,37 @@
+{
+  "name": "Company",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Company display name shown on the board"
+    },
+    "slug": {
+      "type": "string",
+      "description": "Ashby organization hosted jobs page name, e.g. headway"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "When true, this company's Ashby board is included in the aggregated job list"
+    }
+  },
+  "required": [
+    "name",
+    "slug"
+  ],
+  "rls": {
+    "read": {},
+    "create": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
