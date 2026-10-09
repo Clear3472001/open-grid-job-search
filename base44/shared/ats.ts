@@ -135,6 +135,232 @@ function normalizeLever(posting, companyName) {
   };
 }
 
+// ── SmartRecruiters ────────────────────────────────────────────────────────────
+// GET https://api.smartrecruiters.com/v1/companies/{slug}/postings?limit=100&offset=0
+// Paginate with offset until totalFound is reached.
+async function fetchSmartRecruiters(slug) {
+  const all = [];
+  const limit = 100;
+  let offset = 0;
+  for (;;) {
+    const url = `https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(slug)}/postings?limit=${limit}&offset=${offset}`;
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new Error(`SmartRecruiters responded with ${response.status}`);
+    const payload = await response.json();
+    const postings = Array.isArray(payload?.content) ? payload.content : [];
+    all.push(...postings);
+    const total = payload?.totalFound ?? all.length;
+    if (postings.length === 0 || all.length >= total) break;
+    offset += limit;
+  }
+  return all;
+}
+
+function normalizeSmartRecruiters(posting, companyName, slug) {
+  const loc = posting?.location ?? {};
+  const remote = loc.remote === true;
+  let location = "";
+  if (remote && !loc.city) {
+    location = "Remote";
+  } else {
+    const parts = [loc.city, loc.country].map((v) => (v ? String(v).trim() : "")).filter(Boolean);
+    location = parts.join(", ");
+  }
+  const employmentType = posting?.typeOfEmployment?.label ? snakeCase(posting.typeOfEmployment.label) : null;
+  const wpRaw = String(posting?.workplaceType ?? "").toLowerCase();
+  let workplaceType;
+  if (wpRaw === "hybrid") workplaceType = "hybrid";
+  else if (remote) workplaceType = "remote";
+  else workplaceType = "onsite";
+  return {
+    id: String(posting?.id ?? ""),
+    title: posting?.name ?? "Untitled role",
+    company: companyName,
+    location,
+    workplaceType,
+    employmentType,
+    department: posting?.department?.label ?? null,
+    team: null,
+    url: posting?.id ? `https://jobs.smartrecruiters.com/${slug}/${posting.id}` : "",
+    ats: "smartrecruiters",
+  };
+}
+
+// ── Teamtailor ────────────────────────────────────────────────────────────────
+// GET https://{slug}.teamtailor.com/jobs.json (JSON Feed) → { items: [...] }
+async function fetchTeamtailor(slug) {
+  const url = `https://${encodeURIComponent(slug)}.teamtailor.com/jobs.json`;
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new Error(`Teamtailor responded with ${response.status}`);
+  const payload = await response.json();
+  if (!Array.isArray(payload?.items)) throw new Error("Teamtailor response had no items array");
+  return payload;
+}
+
+function normalizeTeamtailor(item, companyName) {
+  const jp = item?._jobposting ?? {};
+  const address = jp?.jobLocation?.address ?? {};
+  const locality = address.addressLocality ? String(address.addressLocality).trim() : "";
+  const country = address.addressCountry ? String(address.addressCountry).trim() : "";
+  const location = (locality || country) ? [locality, country].filter(Boolean).join(", ") : "Remote";
+  const employmentType = jp?.employmentType ? String(jp.employmentType).toLowerCase() : null;
+  return {
+    id: String(item?.id ?? ""),
+    title: item?.title ?? "Untitled role",
+    company: companyName,
+    location,
+    workplaceType: null,
+    employmentType,
+    department: null,
+    team: null,
+    url: item?.url ?? "",
+    ats: "teamtailor",
+  };
+}
+
+// ── Breezy ────────────────────────────────────────────────────────────────────
+// GET https://{slug}.breezy.hr/json → bare JSON array of positions
+async function fetchBreezy(slug) {
+  const url = `https://${encodeURIComponent(slug)}.breezy.hr/json`;
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new Error(`Breezy responded with ${response.status}`);
+  const payload = await response.json();
+  if (!Array.isArray(payload)) throw new Error("Breezy response was not an array");
+  return payload;
+}
+
+function normalizeBreezy(p, companyName) {
+  const locName = p?.location?.name ? String(p.location.name).trim() : "Not specified";
+  const locLower = locName.toLowerCase();
+  let workplaceType = "onsite";
+  if (locLower.includes("remote")) workplaceType = "remote";
+  else if (locLower.includes("hybrid")) workplaceType = "hybrid";
+  const employmentType = p?.type?.name ? snakeCase(p.type.name) : null;
+  return {
+    id: String(p?.id ?? ""),
+    title: p?.name ?? "Untitled role",
+    company: companyName,
+    location: locName,
+    workplaceType,
+    employmentType,
+    department: null,
+    team: null,
+    url: p?.url ?? "",
+    ats: "breezy",
+  };
+}
+
+// ── Carex (custom HTML scraper) ────────────────────────────────────────────────
+// Carex blocks bots with a 403 unless the request looks like a browser.
+const CAREX_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+async function fetchCarex() {
+  const all = [];
+  for (let page = 1; page <= 4; page++) {
+    const url = page === 1
+      ? "https://www.carexconsulting.com/see-job-openings/"
+      : `https://www.carexconsulting.com/see-job-openings/page/${page}/`;
+    const response = await fetch(url, {
+      headers: { "User-Agent": CAREX_UA, Accept: "text/html" },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) {
+      if (page > 1) break; // stop at the first missing page
+      throw new Error(`Carex responded with ${response.status}`);
+    }
+    const html = await response.text();
+    const jobs = parseCarexHtml(html);
+    if (jobs.length === 0) break;
+    all.push(...jobs);
+  }
+  return all;
+}
+
+function decodeHtmlEntities(s) {
+  return String(s)
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ");
+}
+
+// Pulls "Location: X", "Remote: X", "Type: X" out of the <li> items in a job block.
+function parseCarexLiFields(block) {
+  const fields = {};
+  const liRe = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+  let m;
+  while ((m = liRe.exec(block)) !== null) {
+    const text = decodeHtmlEntities(m[1].replace(/<[^>]*>/g, "").trim());
+    const colonIdx = text.indexOf(":");
+    if (colonIdx === -1) continue;
+    const key = text.slice(0, colonIdx).trim().toLowerCase();
+    const value = text.slice(colonIdx + 1).trim();
+    if (key === "location") fields.location = value;
+    else if (key === "remote") fields.remote = value;
+    else if (key === "type") fields.type = value;
+  }
+  return fields;
+}
+
+function parseCarexHtml(html) {
+  const jobs = [];
+  const articleRe = /<article[^>]*class="[^"]*matador-job[^"]*"[^>]*>([\s\S]*?)<\/article>/gi;
+  let match;
+  while ((match = articleRe.exec(html)) !== null) {
+    const block = match[1];
+    const linkMatch = block.match(/<a[^>]*href="([^"]*\/jobs\/[^"]*)"[^>]*>([\s\S]*?)<\/a>/i);
+    if (!linkMatch) continue;
+    const url = linkMatch[1];
+    const title = decodeHtmlEntities(linkMatch[2].replace(/<[^>]*>/g, "").trim());
+    const id = url.split("/").filter(Boolean).pop() ?? url;
+    const fields = parseCarexLiFields(block);
+    let workplaceType = "onsite";
+    if (fields.remote) {
+      const r = fields.remote.toLowerCase();
+      if (r === "remote") workplaceType = "remote";
+      else if (r === "hybrid") workplaceType = "hybrid";
+    }
+    const employmentType = fields.type ? snakeCase(fields.type) : null;
+    jobs.push({
+      id: String(id),
+      title: title || "Untitled role",
+      company: "Carex Consulting Group",
+      location: fields.location || "",
+      workplaceType,
+      employmentType,
+      department: null,
+      team: null,
+      url,
+      ats: "carex",
+    });
+  }
+  return jobs;
+}
+
+function normalizeCarex(parsed, companyName) {
+  return { ...parsed, company: companyName, ats: "carex" };
+}
+
+// ── Shared helper ──────────────────────────────────────────────────────────────
+function snakeCase(value) {
+  return String(value ?? "").trim().toLowerCase()
+    .replace(/[\s\-]+/g, "_")
+    .replace(/[^a-z0-9_]/g, "")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+}
+
 // ── Dispatcher ─────────────────────────────────────────────────────────────────
 export async function fetchBoardForCompany(company) {
   const slug = company.ats_slug || company.ashby_slug;
@@ -143,6 +369,10 @@ export async function fetchBoardForCompany(company) {
   if (ats === "ashby") return { ats, raw: await fetchAshby(slug) };
   if (ats === "greenhouse") return { ats, raw: await fetchGreenhouse(slug) };
   if (ats === "lever") return { ats, raw: await fetchLever(slug) };
+  if (ats === "smartrecruiters") return { ats, raw: await fetchSmartRecruiters(slug) };
+  if (ats === "teamtailor") return { ats, raw: await fetchTeamtailor(slug) };
+  if (ats === "breezy") return { ats, raw: await fetchBreezy(slug) };
+  if (ats === "carex") return { ats, raw: await fetchCarex() };
   throw new Error(`Unknown ATS: ${ats}`);
 }
 
@@ -162,6 +392,23 @@ export function normalizeJobsForCompany(company, board) {
   if (ats === "lever") {
     const postings = Array.isArray(board) ? board : board?.raw ?? [];
     return postings.map((p) => normalizeLever(p, company.name));
+  }
+  if (ats === "smartrecruiters") {
+    const postings = Array.isArray(board) ? board : board?.raw ?? [];
+    return postings.map((p) => normalizeSmartRecruiters(p, company.name, slug));
+  }
+  if (ats === "teamtailor") {
+    const raw = board?.items ? board : board?.raw;
+    const items = raw?.items ?? [];
+    return items.map((i) => normalizeTeamtailor(i, company.name));
+  }
+  if (ats === "breezy") {
+    const postings = Array.isArray(board) ? board : board?.raw ?? [];
+    return postings.map((p) => normalizeBreezy(p, company.name));
+  }
+  if (ats === "carex") {
+    const postings = Array.isArray(board) ? board : board?.raw ?? [];
+    return postings.map((p) => normalizeCarex(p, company.name));
   }
   return [];
 }

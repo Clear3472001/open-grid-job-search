@@ -11,7 +11,11 @@
       "enum": [
         "ashby",
         "greenhouse",
-        "lever"
+        "lever",
+        "smartrecruiters",
+        "teamtailor",
+        "breezy",
+        "carex"
       ],
       "default": "ashby",
       "description": "Which ATS hosts this company's job board"

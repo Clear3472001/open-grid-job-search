@@ -4,12 +4,20 @@ export const ATS_OPTIONS = [
   { value: "ashby", label: "Ashby" },
   { value: "greenhouse", label: "Greenhouse" },
   { value: "lever", label: "Lever" },
+  { value: "smartrecruiters", label: "SmartRecruiters" },
+  { value: "teamtailor", label: "Teamtailor" },
+  { value: "breezy", label: "Breezy" },
+  { value: "carex", label: "Carex" },
 ];
 
 export const ATS_LABEL = {
   ashby: "Ashby",
   greenhouse: "Greenhouse",
   lever: "Lever",
+  smartrecruiters: "SmartRecruiters",
+  teamtailor: "Teamtailor",
+  breezy: "Breezy",
+  carex: "Carex",
 };
 
 // Extracts the board slug from a pasted URL or raw slug, per ATS.
