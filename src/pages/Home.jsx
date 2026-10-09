@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const HIGHLIGHTS = [
-  { icon: Layers, label: "Ashby, Greenhouse & Lever in one feed" },
+  { icon: Layers, label: "Every hiring platform in one feed" },
   { icon: RefreshCw, label: "Refreshed every 15 minutes" },
   { icon: ShieldCheck, label: "No sign-up, just search" },
 ];
@@ -44,8 +44,9 @@ export default function Home() {
             Every open role, straight from the source.
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">
-            One searchable feed of live jobs from companies hiring on Ashby, Greenhouse, and Lever.
-            Search by title, company, location, or work style, then apply on the original posting.
+            One searchable feed of live jobs from hundreds of companies, gathered straight from the
+            hiring platforms they use. Search by title, company, location, or work style, then apply
+            on the original posting.
           </p>
 
           <ul className="mt-8 flex flex-wrap justify-center gap-2">
