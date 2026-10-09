@@ -4,6 +4,7 @@ import { Layers, Loader2, Plus } from "lucide-react";
 import BoardFilters from "@/components/BoardFilters";
 import JobCard from "@/components/JobCard";
 import useJobs from "@/hooks/useJobs";
+import { locationMatches } from "@/lib/locationMatch";
 import { Button } from "@/components/ui/button";
 
 const PAGE_SIZE = 24;
@@ -26,11 +27,11 @@ export default function Board() {
 
   const results = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
-    const loc = location.trim().toLowerCase();
+    const loc = location.trim();
 
     return jobs.filter((job) => {
       if (kw && !`${job.title} ${job.company}`.toLowerCase().includes(kw)) return false;
-      if (loc && !String(job.location ?? "").toLowerCase().includes(loc)) return false;
+      if (loc && !locationMatches(job.location, loc)) return false;
       if (employment !== "all" && job.employmentType !== employment) return false;
       if (source !== "all" && job.ats !== source) return false;
       if (remoteOnly && job.workplaceType !== "remote" && job.workplaceType !== "hybrid") return false;
