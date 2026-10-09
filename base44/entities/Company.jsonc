@@ -15,7 +15,8 @@
         "smartrecruiters",
         "teamtailor",
         "breezy",
-        "carex"
+        "carex",
+        "workday"
       ],
       "default": "ashby",
       "description": "Which ATS hosts this company's job board"

@@ -4,6 +4,7 @@ import {
   normalizeJobsForCompany,
   mapWithConcurrency,
   fetchAllPages,
+  workdayTotal,
 } from "../../shared/ats.ts";
 
 const STALE_MS = 12 * 60 * 60 * 1000; // 12 hours
@@ -61,11 +62,12 @@ export default async function refreshBoardCache(req) {
       if (!result.ok) continue; // skip errored companies; retried next run
       const { company, slug, board } = result.value;
       const jobs = normalizeJobsForCompany(company, board);
+      const realCount = (company.ats || "ashby") === "workday" ? workdayTotal(board) : jobs.length;
       upserts.push({
         company_slug: slug,
         company_name: company.name,
         jobs,
-        job_count: jobs.length,
+        job_count: realCount,
         fetched_at: new Date().toISOString(),
       });
       refreshed += 1;

@@ -8,6 +8,7 @@ export const ATS_OPTIONS = [
   { value: "teamtailor", label: "Teamtailor" },
   { value: "breezy", label: "Breezy" },
   { value: "carex", label: "Carex" },
+  { value: "workday", label: "Workday" },
 ];
 
 export const ATS_LABEL = {
@@ -18,6 +19,7 @@ export const ATS_LABEL = {
   teamtailor: "Teamtailor",
   breezy: "Breezy",
   carex: "Carex",
+  workday: "Workday",
 };
 
 // Extracts the board slug from a pasted URL or raw slug, per ATS.
