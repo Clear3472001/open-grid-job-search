@@ -352,6 +352,97 @@ function normalizeCarex(parsed, companyName) {
   return { ...parsed, company: companyName, ats: "carex" };
 }
 
+// ── Workday ────────────────────────────────────────────────────────────────────
+// ats_slug format: "{tenant}.{wd}|{site}" (e.g. "geisinger.wd5|GeisingerExternal").
+// The cxs jobs endpoint returns 20 postings per request and rejects any other limit.
+const WORKDAY_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const WORKDAY_PAGE_LIMIT = 20;
+const WORKDAY_CAP = 400; // cap fetched postings per company to keep the refresh fast
+
+function parseWorkdaySlug(atsSlug) {
+  const raw = String(atsSlug ?? "").trim();
+  const sepIdx = raw.indexOf("|");
+  if (sepIdx === -1) throw new Error(`Workday slug "${raw}" is missing the "|site" segment`);
+  const tenantWd = raw.slice(0, sepIdx).trim();
+  const site = raw.slice(sepIdx + 1).trim();
+  const dotIdx = tenantWd.lastIndexOf(".");
+  if (dotIdx === -1) throw new Error(`Workday slug "${raw}" is missing the ".wd" segment`);
+  const tenant = tenantWd.slice(0, dotIdx).trim();
+  const wd = tenantWd.slice(dotIdx + 1).trim();
+  if (!tenant || !wd || !site) throw new Error(`Workday slug "${raw}" could not be parsed`);
+  return { tenant, wd, site };
+}
+
+async function fetchWorkday(atsSlug) {
+  const { tenant, wd, site } = parseWorkdaySlug(atsSlug);
+  const base = `https://${tenant}.${wd}.myworkdayjobs.com/wday/cxs/${tenant}/${site}/jobs`;
+  const all = [];
+  let offset = 0;
+  let total = 0;
+  for (;;) {
+    const response = await fetch(base, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": WORKDAY_UA,
+      },
+      body: JSON.stringify({ appliedFacets: {}, limit: WORKDAY_PAGE_LIMIT, offset, searchText: "" }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new Error(`Workday responded with ${response.status}`);
+    const payload = await response.json();
+    const data = payload?.data ?? {};
+    const postings = Array.isArray(data?.jobPostings) ? data.jobPostings : [];
+    if (postings.length === 0) break;
+    total = typeof data?.total === "number" ? data.total : total;
+    all.push(...postings);
+    offset += WORKDAY_PAGE_LIMIT;
+    if (offset >= WORKDAY_CAP) break; // cap at 400 postings per company
+    await new Promise((resolve) => setTimeout(resolve, 300)); // be polite between pages
+  }
+  return { jobs: all, total };
+}
+
+function normalizeWorkday(p, atsSlug) {
+  const { tenant, wd, site } = parseWorkdaySlug(atsSlug);
+  const externalPath = String(p?.externalPath ?? "");
+  const locationsText = String(p?.locationsText ?? "").trim();
+  const haystack = `${locationsText} ${externalPath}`.toLowerCase();
+  let workplaceType = "onsite";
+  if (haystack.includes("remote") || haystack.includes("work-from-home")) workplaceType = "remote";
+  else if (haystack.includes("hybrid")) workplaceType = "hybrid";
+  const timeRaw = String(p?.timeType ?? "").trim();
+  const employmentType = timeRaw ? timeRaw.toLowerCase().replace(/\s+/g, "_") : null;
+  const id = externalPath.split("/").filter(Boolean).pop() ?? externalPath;
+  return {
+    id: String(id),
+    title: p?.title ?? "Untitled role",
+    company: "",
+    location: locationsText || "Not specified",
+    workplaceType,
+    employmentType,
+    department: null,
+    team: null,
+    url: `https://${tenant}.${wd}.myworkdayjobs.com/${site}${externalPath}`,
+    ats: "workday",
+  };
+}
+
+function normalizeWorkdayJobs(company, board) {
+  const raw = board?.jobs ? board : board?.raw ?? { jobs: [], total: 0 };
+  const postings = raw?.jobs ?? [];
+  const total = typeof raw?.total === "number" ? raw.total : postings.length;
+  const slug = company.ats_slug || company.ashby_slug;
+  return postings.map((p) => ({ ...normalizeWorkday(p, slug), company: company.name }));
+}
+
+// Expose the API total so the cache stores the real board size, not the capped count.
+export function workdayTotal(board) {
+  const raw = board?.raw ?? board ?? {};
+  return typeof raw?.total === "number" ? raw.total : (raw?.jobs ?? []).length;
+}
+
 // ── Shared helper ──────────────────────────────────────────────────────────────
 function snakeCase(value) {
   return String(value ?? "").trim().toLowerCase()
@@ -373,6 +464,7 @@ export async function fetchBoardForCompany(company) {
   if (ats === "teamtailor") return { ats, raw: await fetchTeamtailor(slug) };
   if (ats === "breezy") return { ats, raw: await fetchBreezy(slug) };
   if (ats === "carex") return { ats, raw: await fetchCarex() };
+  if (ats === "workday") return { ats, raw: await fetchWorkday(slug) };
   throw new Error(`Unknown ATS: ${ats}`);
 }
 
@@ -410,6 +502,7 @@ export function normalizeJobsForCompany(company, board) {
     const postings = Array.isArray(board) ? board : board?.raw ?? [];
     return postings.map((p) => normalizeCarex(p, company.name));
   }
+  if (ats === "workday") return normalizeWorkdayJobs(company, board);
   return [];
 }
 
