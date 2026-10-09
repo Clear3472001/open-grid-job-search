@@ -21,7 +21,7 @@ export default async function refreshBoardCache(req) {
     const companies = (await fetchAllPages(
       base44.asServiceRole.entities.Company,
       { active: true },
-    )).filter((company) => company?.ats_slug || company?.ashby_slug);
+    )).filter((company) => (company?.ats_slug || company?.ashby_slug) && company.ats !== "workday"); // Workday boards are imported separately via importWorkdayJobs — the backend can't reach myworkdayjobs.com, so skip them here without zeroing their cache
 
     if (companies.length === 0) {
       return Response.json({ refreshed: 0, remaining: 0, message: "No active companies." });
