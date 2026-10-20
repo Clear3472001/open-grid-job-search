@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Layers, Loader2, Plus } from "lucide-react";
 import BoardFilters from "@/components/BoardFilters";
 import JobCard from "@/components/JobCard";
+import Pagination from "@/components/Pagination";
 import useJobs from "@/hooks/useJobs";
 import { locationMatches } from "@/lib/locationMatch";
 import { Button } from "@/components/ui/button";
@@ -138,27 +139,11 @@ export default function Board() {
               <p className="text-xs text-muted-foreground">
                 Showing {start + 1}–{Math.min(start + PAGE_SIZE, results.length)} of {results.length}
               </p>
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage <= 1}
-                  onClick={() => goToPage(currentPage - 1)}
-                >
-                  Previous
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => goToPage(currentPage + 1)}
-                >
-                  Next
-                </Button>
-              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={goToPage}
+              />
             </div>
           </>
         )}
